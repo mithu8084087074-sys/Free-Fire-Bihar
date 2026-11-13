@@ -1,0 +1,389 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- GLOBAL HELPERS ---
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        ('email_verified' in request.auth.token &&
+         request.auth.token.email_verified == true &&
+         'email' in request.auth.token &&
+         request.auth.token.email == 'mithu8084087074@gmail.com') ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    // --- ENTITY VALIDATION HELPERS ---
+    function isValidUserProfile(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.playerId is string && data.playerId.size() >= 4 && data.playerId.size() <= 32 &&
+             data.username is string && data.username.size() >= 2 && data.username.size() <= 32 &&
+             (!('email' in data) || (data.email is string && data.email.size() <= 150)) &&
+             (!('photoUrl' in data) || (data.photoUrl is string && data.photoUrl.size() <= 500)) &&
+             data.role in ['player', 'owner'] &&
+             data.coins is int && data.coins >= 0 && data.coins <= 10000000 &&
+             data.diamonds is int && data.diamonds >= 0 && data.diamonds <= 10000000 &&
+             data.level is int && data.level >= 1 && data.level <= 500 &&
+             data.xp is int && data.xp >= 0 &&
+             data.rankPoints is int && data.rankPoints >= 0 &&
+             data.kills is int && data.kills >= 0 &&
+             data.wins is int && data.wins >= 0 &&
+             data.matchesPlayed is int && data.matchesPlayed >= 0 &&
+             data.equippedCharacterId is string && data.equippedCharacterId.size() <= 64 &&
+             data.equippedWeaponId is string && data.equippedWeaponId.size() <= 64 &&
+             (!('equippedOutfitId' in data) || (data.equippedOutfitId is string && data.equippedOutfitId.size() <= 64)) &&
+             (!('equippedParachuteId' in data) || (data.equippedParachuteId is string && data.equippedParachuteId.size() <= 64)) &&
+             (!('equippedVehicleId' in data) || (data.equippedVehicleId is string && data.equippedVehicleId.size() <= 64)) &&
+             (!('equippedPetId' in data) || (data.equippedPetId is string && data.equippedPetId.size() <= 64)) &&
+             data.isSuspended is bool &&
+             (!('suspensionReason' in data) || (data.suspensionReason is string && data.suspensionReason.size() <= 300)) &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             (!('updatedAt' in data) || (data.updatedAt is timestamp && data.updatedAt <= request.time));
+    }
+
+    function isValidPublicPlayer(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.playerId is string && data.playerId.size() >= 4 && data.playerId.size() <= 32 &&
+             data.username is string && data.username.size() >= 2 && data.username.size() <= 32 &&
+             data.level is int && data.level >= 1 && data.level <= 500 &&
+             data.rankPoints is int && data.rankPoints >= 0 &&
+             data.kills is int && data.kills >= 0 &&
+             data.wins is int && data.wins >= 0 &&
+             data.matchesPlayed is int && data.matchesPlayed >= 0 &&
+             data.equippedCharacterId is string && data.equippedCharacterId.size() <= 64 &&
+             data.isOnline is bool &&
+             data.isSuspended is bool &&
+             (!('updatedAt' in data) || (data.updatedAt is timestamp && data.updatedAt <= request.time));
+    }
+
+    function isValidInventoryItem(data) {
+      return data.itemId is string && data.itemId.size() >= 1 && data.itemId.size() <= 64 &&
+             data.category is string && data.category.size() >= 1 && data.category.size() <= 32 &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 64 &&
+             data.rarity is string && data.rarity.size() >= 1 && data.rarity.size() <= 32 &&
+             data.level is int && data.level >= 1 && data.level <= 100 &&
+             (!('acquiredAt' in data) || (data.acquiredAt is timestamp && data.acquiredAt <= request.time));
+    }
+
+    function isValidFriendRecord(data) {
+      return data.friendUid is string && data.friendUid.size() >= 1 && data.friendUid.size() <= 128 &&
+             data.friendPlayerId is string && data.friendPlayerId.size() >= 4 && data.friendPlayerId.size() <= 32 &&
+             data.friendUsername is string && data.friendUsername.size() >= 2 && data.friendUsername.size() <= 32 &&
+             data.status in ['pending_sent', 'pending_received', 'accepted', 'blocked'] &&
+             (!('updatedAt' in data) || (data.updatedAt is timestamp && data.updatedAt <= request.time));
+    }
+
+    function isValidMissionRecord(data) {
+      return data.missionId is string && data.missionId.size() >= 1 && data.missionId.size() <= 64 &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 120 &&
+             data.progress is int && data.progress >= 0 &&
+             data.target is int && data.target >= 1 &&
+             data.rewardCoins is int && data.rewardCoins >= 0 &&
+             data.rewardDiamonds is int && data.rewardDiamonds >= 0 &&
+             data.claimed is bool &&
+             (!('updatedAt' in data) || (data.updatedAt is timestamp && data.updatedAt <= request.time));
+    }
+
+    function isValidTransaction(data) {
+      return data.txId is string && data.txId.size() >= 1 && data.txId.size() <= 64 &&
+             data.type is string && data.type.size() >= 1 && data.type.size() <= 32 &&
+             data.itemName is string && data.itemName.size() >= 1 && data.itemName.size() <= 80 &&
+             data.coinsDelta is int &&
+             data.diamondsDelta is int &&
+             data.createdAt is timestamp && data.createdAt <= request.time;
+    }
+
+    function isValidMailItem(data) {
+      return data.title is string && data.title.size() >= 1 && data.title.size() <= 100 &&
+             data.body is string && data.body.size() >= 1 && data.body.size() <= 1000 &&
+             data.rewardCoins is int && data.rewardCoins >= 0 &&
+             data.rewardDiamonds is int && data.rewardDiamonds >= 0 &&
+             data.claimed is bool &&
+             data.isRead is bool &&
+             data.createdAt is timestamp && data.createdAt <= request.time;
+    }
+
+    function isValidMatchRoom(data) {
+      return data.roomCode is string && data.roomCode.size() >= 4 && data.roomCode.size() <= 16 &&
+             data.hostUid is string && data.hostUid.size() >= 1 && data.hostUid.size() <= 128 &&
+             data.hostName is string && data.hostName.size() >= 2 && data.hostName.size() <= 32 &&
+             data.mode in ['solo', 'duo', 'squad', 'ranked', 'classic', 'training'] &&
+             data.mapId is string && data.mapId.size() >= 1 && data.mapId.size() <= 64 &&
+             data.mapName is string && data.mapName.size() >= 1 && data.mapName.size() <= 64 &&
+             data.status in ['waiting', 'launching', 'active', 'finished'] &&
+             data.isPrivate is bool &&
+             (!('passwordHash' in data) || (data.passwordHash is string && data.passwordHash.size() <= 128)) &&
+             data.maxPlayers is int && data.maxPlayers >= 2 && data.maxPlayers <= 100 &&
+             data.playerCount is int && data.playerCount >= 0 && data.playerCount <= 100 &&
+             data.fillBots is bool &&
+             data.safeZoneRadius is number && data.safeZoneRadius >= 0 &&
+             data.safeZoneCenterX is number &&
+             data.safeZoneCenterZ is number &&
+             data.phase is int && data.phase >= 0 && data.phase <= 10 &&
+             (!('winnerName' in data) || (data.winnerName is string && data.winnerName.size() <= 64)) &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             (!('updatedAt' in data) || (data.updatedAt is timestamp && data.updatedAt <= request.time));
+    }
+
+    function isValidMatchPlayer(data) {
+      return data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128 &&
+             data.username is string && data.username.size() >= 2 && data.username.size() <= 32 &&
+             data.characterId is string && data.characterId.size() <= 64 &&
+             data.weaponId is string && data.weaponId.size() <= 64 &&
+             data.x is number && data.y is number && data.z is number &&
+             data.yaw is number &&
+             data.hp is int && data.hp >= 0 && data.hp <= 200 &&
+             data.armor is int && data.armor >= 0 && data.armor <= 200 &&
+             data.kills is int && data.kills >= 0 &&
+             data.isAlive is bool &&
+             data.isReady is bool &&
+             (!('isCrouching' in data) || data.isCrouching is bool) &&
+             (!('isParachuting' in data) || data.isParachuting is bool) &&
+             (!('vehicleId' in data) || (data.vehicleId is string && data.vehicleId.size() <= 64)) &&
+             (!('updatedAt' in data) || (data.updatedAt is timestamp && data.updatedAt <= request.time));
+    }
+
+    function isValidChatMessage(data) {
+      return data.senderUid is string && data.senderUid.size() >= 1 && data.senderUid.size() <= 128 &&
+             data.senderName is string && data.senderName.size() >= 2 && data.senderName.size() <= 32 &&
+             data.text is string && data.text.size() >= 1 && data.text.size() <= 300 &&
+             data.createdAt is timestamp && data.createdAt <= request.time;
+    }
+
+    function isValidReport(data) {
+      return data.reporterUid is string && data.reporterUid.size() >= 1 && data.reporterUid.size() <= 128 &&
+             data.targetPlayerId is string && data.targetPlayerId.size() >= 1 && data.targetPlayerId.size() <= 64 &&
+             data.reason is string && data.reason.size() >= 2 && data.reason.size() <= 100 &&
+             (!('details' in data) || (data.details is string && data.details.size() <= 500)) &&
+             data.status in ['open', 'reviewed', 'resolved'] &&
+             data.createdAt is timestamp && data.createdAt <= request.time;
+    }
+
+    function isValidCatalogDoc(data) {
+      return data.keys().size() <= 30 &&
+             (!('name' in data) || (data.name is string && data.name.size() >= 1 && data.name.size() <= 100)) &&
+             (!('title' in data) || (data.title is string && data.title.size() >= 1 && data.title.size() <= 120));
+    }
+
+    // --- USER PROFILE & SUBCOLLECTIONS ---
+    match /users/{userId} {
+      allow get: if isSignedIn() && isValidId(userId) && (request.auth.uid == userId || isAdmin());
+      allow list: if isAdmin();
+
+      allow create: if isSignedIn() &&
+                       isValidId(userId) &&
+                       request.auth.uid == userId &&
+                       incoming().userId == request.auth.uid &&
+                       incoming().role == 'player' &&
+                       incoming().isSuspended == false &&
+                       incoming().coins >= 0 && incoming().coins <= 5000 &&
+                       incoming().diamonds >= 0 && incoming().diamonds <= 500 &&
+                       incoming().keys().hasAll([
+                         'userId', 'playerId', 'username', 'role', 'coins', 'diamonds',
+                         'level', 'xp', 'rankPoints', 'kills', 'wins', 'matchesPlayed',
+                         'equippedCharacterId', 'equippedWeaponId', 'isSuspended', 'createdAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'userId', 'playerId', 'username', 'email', 'photoUrl', 'role',
+                         'coins', 'diamonds', 'level', 'xp', 'rankPoints', 'kills',
+                         'wins', 'matchesPlayed', 'equippedCharacterId', 'equippedWeaponId',
+                         'equippedOutfitId', 'equippedParachuteId', 'equippedVehicleId',
+                         'equippedPetId', 'isSuspended', 'suspensionReason', 'createdAt', 'updatedAt'
+                       ]) &&
+                       isValidUserProfile(incoming());
+
+      allow update: if isSignedIn() &&
+                       isValidId(userId) &&
+                       isValidUserProfile(incoming()) && (
+                         isAdmin() || (
+                           request.auth.uid == userId &&
+                           incoming().userId == existing().userId &&
+                           incoming().role == existing().role &&
+                           incoming().isSuspended == existing().isSuspended &&
+                           incoming().createdAt == existing().createdAt &&
+                           incoming().diff(existing()).affectedKeys().hasOnly([
+                             'username', 'photoUrl', 'coins', 'diamonds', 'level', 'xp',
+                             'rankPoints', 'kills', 'wins', 'matchesPlayed',
+                             'equippedCharacterId', 'equippedWeaponId', 'equippedOutfitId',
+                             'equippedParachuteId', 'equippedVehicleId', 'equippedPetId', 'updatedAt'
+                           ])
+                         )
+                       );
+
+      allow delete: if isAdmin();
+
+      match /inventory/{itemId} {
+        allow get, list: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+        allow create, update: if isSignedIn() && isValidId(itemId) && (request.auth.uid == userId || isAdmin()) && isValidInventoryItem(incoming());
+        allow delete: if isAdmin();
+      }
+
+      match /friends/{friendUid} {
+        allow get, list: if isSignedIn() && request.auth.uid == userId;
+        allow create, update: if isSignedIn() && isValidId(friendUid) && (request.auth.uid == userId || request.auth.uid == friendUid || isAdmin()) && isValidFriendRecord(incoming());
+        allow delete: if isSignedIn() && isValidId(friendUid) && (request.auth.uid == userId || request.auth.uid == friendUid || isAdmin());
+      }
+
+      match /missions/{missionId} {
+        allow get, list: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+        allow create, update: if isSignedIn() && isValidId(missionId) && (request.auth.uid == userId || isAdmin()) && isValidMissionRecord(incoming());
+        allow delete: if isAdmin();
+      }
+
+      match /transactions/{txId} {
+        allow get, list: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+        allow create: if isSignedIn() && isValidId(txId) && (request.auth.uid == userId || isAdmin()) && isValidTransaction(incoming());
+        allow update, delete: if false;
+      }
+
+      match /mailbox/{mailId} {
+        allow get, list: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+        allow create: if isSignedIn() && isValidId(mailId) && (request.auth.uid == userId || isAdmin()) && isValidMailItem(incoming());
+        allow update: if isSignedIn() && isValidId(mailId) && isValidMailItem(incoming()) && (
+          isAdmin() || (
+            request.auth.uid == userId &&
+            incoming().createdAt == existing().createdAt &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['claimed', 'isRead'])
+          )
+        );
+        allow delete: if isSignedIn() && isValidId(mailId) && (request.auth.uid == userId || isAdmin());
+      }
+    }
+
+    // --- PUBLIC PLAYER PROFILES (NO PII) ---
+    match /public_players/{userId} {
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(userId) && request.auth.uid == userId && incoming().userId == request.auth.uid && incoming().isSuspended == false && isValidPublicPlayer(incoming());
+      allow update: if isSignedIn() && isValidId(userId) && isValidPublicPlayer(incoming()) && (
+        isAdmin() || (
+          request.auth.uid == userId &&
+          incoming().userId == existing().userId &&
+          incoming().isSuspended == existing().isSuspended
+        )
+      );
+      allow delete: if isAdmin();
+    }
+
+    // --- OWNER-CONTROLLED GAME CATALOG & CONFIG ---
+    match /catalog_characters/{itemId} {
+      allow get, list: if isSignedIn();
+      allow create, update: if isAdmin() && isValidId(itemId) && isValidCatalogDoc(incoming());
+      allow delete: if isAdmin();
+    }
+    match /catalog_weapons/{itemId} {
+      allow get, list: if isSignedIn();
+      allow create, update: if isAdmin() && isValidId(itemId) && isValidCatalogDoc(incoming());
+      allow delete: if isAdmin();
+    }
+    match /catalog_maps/{itemId} {
+      allow get, list: if isSignedIn();
+      allow create, update: if isAdmin() && isValidId(itemId) && isValidCatalogDoc(incoming());
+      allow delete: if isAdmin();
+    }
+    match /catalog_vehicles/{itemId} {
+      allow get, list: if isSignedIn();
+      allow create, update: if isAdmin() && isValidId(itemId) && isValidCatalogDoc(incoming());
+      allow delete: if isAdmin();
+    }
+    match /catalog_events/{itemId} {
+      allow get, list: if isSignedIn();
+      allow create, update: if isAdmin() && isValidId(itemId) && isValidCatalogDoc(incoming());
+      allow delete: if isAdmin();
+    }
+    match /catalog_store/{itemId} {
+      allow get, list: if isSignedIn();
+      allow create, update: if isAdmin() && isValidId(itemId) && isValidCatalogDoc(incoming());
+      allow delete: if isAdmin();
+    }
+    match /catalog_audio/{itemId} {
+      allow get, list: if isSignedIn();
+      allow create, update: if isAdmin() && isValidId(itemId) && isValidCatalogDoc(incoming());
+      allow delete: if isAdmin();
+    }
+    match /update_history/{itemId} {
+      allow get, list: if isSignedIn();
+      allow create, update: if isAdmin() && isValidId(itemId) && isValidCatalogDoc(incoming());
+      allow delete: if isAdmin();
+    }
+    match /game_config/{configId} {
+      allow get, list: if isSignedIn();
+      allow create, update: if isAdmin() && isValidId(configId) && isValidCatalogDoc(incoming());
+      allow delete: if isAdmin();
+    }
+
+    // --- REAL-TIME MULTIPLAYER MATCH ROOMS ---
+    match /match_rooms/{roomId} {
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn() &&
+                       isValidId(roomId) &&
+                       incoming().hostUid == request.auth.uid &&
+                       incoming().status == 'waiting' &&
+                       isValidMatchRoom(incoming());
+      allow update: if isSignedIn() &&
+                       isValidId(roomId) &&
+                       isValidMatchRoom(incoming()) && (
+                         isAdmin() || (
+                           existing().status != 'finished' &&
+                           incoming().hostUid == existing().hostUid &&
+                           incoming().createdAt == existing().createdAt && (
+                             (request.auth.uid == existing().hostUid &&
+                              incoming().diff(existing()).affectedKeys().hasOnly(['status', 'playerCount', 'fillBots', 'safeZoneRadius', 'safeZoneCenterX', 'safeZoneCenterZ', 'phase', 'winnerName', 'updatedAt'])) ||
+                             incoming().diff(existing()).affectedKeys().hasOnly(['playerCount', 'updatedAt'])
+                           )
+                         )
+                       );
+      allow delete: if isSignedIn() && isValidId(roomId) && (request.auth.uid == existing().hostUid || isAdmin());
+
+      match /players/{playerUid} {
+        allow get, list: if isSignedIn();
+        allow create, update: if isSignedIn() && isValidId(playerUid) && (request.auth.uid == playerUid || isAdmin()) && incoming().uid == playerUid && isValidMatchPlayer(incoming());
+        allow delete: if isSignedIn() && isValidId(playerUid) && (request.auth.uid == playerUid || isAdmin());
+      }
+
+      match /chat/{msgId} {
+        allow get, list: if isSignedIn();
+        allow create: if isSignedIn() && isValidId(msgId) && incoming().senderUid == request.auth.uid && isValidChatMessage(incoming());
+        allow update, delete: if isAdmin();
+      }
+    }
+
+    // --- REPORTS & COMPLAINTS ---
+    match /reports/{reportId} {
+      allow create: if isSignedIn() && isValidId(reportId) && incoming().reporterUid == request.auth.uid && incoming().status == 'open' && isValidReport(incoming());
+      allow get, list: if isSignedIn() && (resource.data.reporterUid == request.auth.uid || isAdmin());
+      allow update, delete: if isAdmin();
+    }
+
+    // --- OWNER-ONLY SECURITY & AUDIT COLLECTIONS ---
+    match /admins/{uid} {
+      allow read, write: if isAdmin();
+    }
+    match /owner_security/{uid} {
+      allow read, write: if isAdmin();
+    }
+    match /audit_logs/{logId} {
+      allow read, write: if isAdmin();
+    }
+  }
+}

@@ -1,0 +1,321 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Authenticated player account, progression, currency, and equipped loadout.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "playerId": { "type": "string" },
+        "username": { "type": "string" },
+        "email": { "type": "string" },
+        "photoUrl": { "type": "string" },
+        "role": { "type": "string", "enum": ["player", "owner"] },
+        "coins": { "type": "integer" },
+        "diamonds": { "type": "integer" },
+        "level": { "type": "integer" },
+        "xp": { "type": "integer" },
+        "rankPoints": { "type": "integer" },
+        "kills": { "type": "integer" },
+        "wins": { "type": "integer" },
+        "matchesPlayed": { "type": "integer" },
+        "equippedCharacterId": { "type": "string" },
+        "equippedWeaponId": { "type": "string" },
+        "equippedOutfitId": { "type": "string" },
+        "equippedParachuteId": { "type": "string" },
+        "equippedVehicleId": { "type": "string" },
+        "equippedPetId": { "type": "string" },
+        "isSuspended": { "type": "boolean" },
+        "suspensionReason": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "userId", "playerId", "username", "role", "coins", "diamonds",
+        "level", "xp", "rankPoints", "kills", "wins", "matchesPlayed",
+        "equippedCharacterId", "equippedWeaponId", "isSuspended", "createdAt"
+      ]
+    },
+    "PublicPlayer": {
+      "title": "PublicPlayer",
+      "description": "Public non-PII player profile for leaderboards, friend search, and match display.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "playerId": { "type": "string" },
+        "username": { "type": "string" },
+        "level": { "type": "integer" },
+        "rankPoints": { "type": "integer" },
+        "kills": { "type": "integer" },
+        "wins": { "type": "integer" },
+        "matchesPlayed": { "type": "integer" },
+        "equippedCharacterId": { "type": "string" },
+        "isOnline": { "type": "boolean" },
+        "isSuspended": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "playerId", "username", "level", "rankPoints", "kills", "wins", "matchesPlayed", "equippedCharacterId", "isOnline", "isSuspended"]
+    },
+    "InventoryItem": {
+      "title": "InventoryItem",
+      "description": "Player owned cosmetic, character, weapon, or vehicle item.",
+      "type": "object",
+      "properties": {
+        "itemId": { "type": "string" },
+        "category": { "type": "string" },
+        "name": { "type": "string" },
+        "rarity": { "type": "string" },
+        "level": { "type": "integer" },
+        "acquiredAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["itemId", "category", "name", "rarity", "level"]
+    },
+    "FriendRecord": {
+      "title": "FriendRecord",
+      "description": "Friend relationship or pending invitation.",
+      "type": "object",
+      "properties": {
+        "friendUid": { "type": "string" },
+        "friendPlayerId": { "type": "string" },
+        "friendUsername": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending_sent", "pending_received", "accepted", "blocked"] },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["friendUid", "friendPlayerId", "friendUsername", "status"]
+    },
+    "MissionRecord": {
+      "title": "MissionRecord",
+      "description": "Player daily or weekly mission progress.",
+      "type": "object",
+      "properties": {
+        "missionId": { "type": "string" },
+        "title": { "type": "string" },
+        "progress": { "type": "integer" },
+        "target": { "type": "integer" },
+        "rewardCoins": { "type": "integer" },
+        "rewardDiamonds": { "type": "integer" },
+        "claimed": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["missionId", "title", "progress", "target", "rewardCoins", "rewardDiamonds", "claimed"]
+    },
+    "TransactionRecord": {
+      "title": "TransactionRecord",
+      "description": "Immutable virtual currency purchase or reward ledger entry.",
+      "type": "object",
+      "properties": {
+        "txId": { "type": "string" },
+        "type": { "type": "string" },
+        "itemName": { "type": "string" },
+        "coinsDelta": { "type": "integer" },
+        "diamondsDelta": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["txId", "type", "itemName", "coinsDelta", "diamondsDelta", "createdAt"]
+    },
+    "MailItem": {
+      "title": "MailItem",
+      "description": "In-game mailbox notification or reward delivery.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "body": { "type": "string" },
+        "rewardCoins": { "type": "integer" },
+        "rewardDiamonds": { "type": "integer" },
+        "claimed": { "type": "boolean" },
+        "isRead": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "body", "rewardCoins", "rewardDiamonds", "claimed", "isRead", "createdAt"]
+    },
+    "CatalogEntry": {
+      "title": "CatalogEntry",
+      "description": "Owner-managed live game catalog asset (character, weapon, map, vehicle, event, store, audio, update).",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "subtitle": { "type": "string" },
+        "description": { "type": "string" },
+        "enabled": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "enabled"]
+    },
+    "MatchRoom": {
+      "title": "MatchRoom",
+      "description": "Real-time Battle Royale multiplayer match lobby and active zone state.",
+      "type": "object",
+      "properties": {
+        "roomCode": { "type": "string" },
+        "hostUid": { "type": "string" },
+        "hostName": { "type": "string" },
+        "mode": { "type": "string", "enum": ["solo", "duo", "squad", "ranked", "classic", "training"] },
+        "mapId": { "type": "string" },
+        "mapName": { "type": "string" },
+        "status": { "type": "string", "enum": ["waiting", "launching", "active", "finished"] },
+        "isPrivate": { "type": "boolean" },
+        "passwordHash": { "type": "string" },
+        "maxPlayers": { "type": "integer" },
+        "playerCount": { "type": "integer" },
+        "fillBots": { "type": "boolean" },
+        "safeZoneRadius": { "type": "number" },
+        "safeZoneCenterX": { "type": "number" },
+        "safeZoneCenterZ": { "type": "number" },
+        "phase": { "type": "integer" },
+        "winnerName": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "roomCode", "hostUid", "hostName", "mode", "mapId", "mapName", "status",
+        "isPrivate", "maxPlayers", "playerCount", "fillBots", "safeZoneRadius",
+        "safeZoneCenterX", "safeZoneCenterZ", "phase", "createdAt"
+      ]
+    },
+    "MatchPlayer": {
+      "title": "MatchPlayer",
+      "description": "Live synchronized 3D state of a player inside a match room.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "username": { "type": "string" },
+        "characterId": { "type": "string" },
+        "weaponId": { "type": "string" },
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "z": { "type": "number" },
+        "yaw": { "type": "number" },
+        "hp": { "type": "integer" },
+        "armor": { "type": "integer" },
+        "kills": { "type": "integer" },
+        "isAlive": { "type": "boolean" },
+        "isReady": { "type": "boolean" },
+        "isCrouching": { "type": "boolean" },
+        "isParachuting": { "type": "boolean" },
+        "vehicleId": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "username", "characterId", "weaponId", "x", "y", "z", "yaw", "hp", "armor", "kills", "isAlive", "isReady"]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "description": "Real-time text chat message in lobby or match room.",
+      "type": "object",
+      "properties": {
+        "senderUid": { "type": "string" },
+        "senderName": { "type": "string" },
+        "text": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["senderUid", "senderName", "text", "createdAt"]
+    },
+    "GameReport": {
+      "title": "GameReport",
+      "description": "Player complaint or anti-cheat report reviewed by owner.",
+      "type": "object",
+      "properties": {
+        "reporterUid": { "type": "string" },
+        "targetPlayerId": { "type": "string" },
+        "reason": { "type": "string" },
+        "details": { "type": "string" },
+        "status": { "type": "string", "enum": ["open", "reviewed", "resolved"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["reporterUid", "targetPlayerId", "reason", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Private authenticated player profile and loadout"
+    },
+    "/public_players/{userId}": {
+      "schema": { "$ref": "#/entities/PublicPlayer" },
+      "description": "Public leaderboard and social search records"
+    },
+    "/users/{userId}/inventory/{itemId}": {
+      "schema": { "$ref": "#/entities/InventoryItem" },
+      "description": "Owned characters, weapons, skins, vehicles"
+    },
+    "/users/{userId}/friends/{friendUid}": {
+      "schema": { "$ref": "#/entities/FriendRecord" },
+      "description": "Player friends and team invites"
+    },
+    "/users/{userId}/missions/{missionId}": {
+      "schema": { "$ref": "#/entities/MissionRecord" },
+      "description": "Mission progress and reward claims"
+    },
+    "/users/{userId}/transactions/{txId}": {
+      "schema": { "$ref": "#/entities/TransactionRecord" },
+      "description": "Immutable currency ledger"
+    },
+    "/users/{userId}/mailbox/{mailId}": {
+      "schema": { "$ref": "#/entities/MailItem" },
+      "description": "Player mailbox notifications and rewards"
+    },
+    "/catalog_characters/{itemId}": {
+      "schema": { "$ref": "#/entities/CatalogEntry" },
+      "description": "Live catalog of playable 3D characters"
+    },
+    "/catalog_weapons/{itemId}": {
+      "schema": { "$ref": "#/entities/CatalogEntry" },
+      "description": "Live catalog of weapons and attachments"
+    },
+    "/catalog_maps/{itemId}": {
+      "schema": { "$ref": "#/entities/CatalogEntry" },
+      "description": "Live catalog of battle royale maps"
+    },
+    "/catalog_vehicles/{itemId}": {
+      "schema": { "$ref": "#/entities/CatalogEntry" },
+      "description": "Live catalog of drivable vehicles"
+    },
+    "/catalog_events/{itemId}": {
+      "schema": { "$ref": "#/entities/CatalogEntry" },
+      "description": "Live events, tournaments, and announcements"
+    },
+    "/catalog_store/{itemId}": {
+      "schema": { "$ref": "#/entities/CatalogEntry" },
+      "description": "Live in-game store cosmetics"
+    },
+    "/catalog_audio/{itemId}": {
+      "schema": { "$ref": "#/entities/CatalogEntry" },
+      "description": "Live background music and SFX settings"
+    },
+    "/update_history/{itemId}": {
+      "schema": { "$ref": "#/entities/CatalogEntry" },
+      "description": "Owner update manager release and rollback logs"
+    },
+    "/game_config/{configId}": {
+      "schema": { "$ref": "#/entities/CatalogEntry" },
+      "description": "Global server config, maintenance mode, enabled modes"
+    },
+    "/match_rooms/{roomId}": {
+      "schema": { "$ref": "#/entities/MatchRoom" },
+      "description": "Real-time multiplayer match rooms"
+    },
+    "/match_rooms/{roomId}/players/{playerUid}": {
+      "schema": { "$ref": "#/entities/MatchPlayer" },
+      "description": "Synchronized 3D player state in a match"
+    },
+    "/match_rooms/{roomId}/chat/{msgId}": {
+      "schema": { "$ref": "#/entities/ChatMessage" },
+      "description": "Match room text chat"
+    },
+    "/reports/{reportId}": {
+      "schema": { "$ref": "#/entities/GameReport" },
+      "description": "Player reports and support complaints"
+    },
+    "/admins/{uid}": {
+      "schema": { "$ref": "#/entities/CatalogEntry" },
+      "description": "Authorized Super Admin / Owner access list"
+    },
+    "/owner_security/{uid}": {
+      "schema": { "$ref": "#/entities/CatalogEntry" },
+      "description": "Owner security settings, passkey hash, 2FA config"
+    },
+    "/audit_logs/{logId}": {
+      "schema": { "$ref": "#/entities/CatalogEntry" },
+      "description": "Immutable owner action audit trail"
+    }
+  }
+}
